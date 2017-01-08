@@ -1,0 +1,21 @@
+{
+  "name": "crypto-notifier",
+  "description": "An app which notifies users when the price of their chosen currency changes by 1 USD",
+  "main": "index.js",
+  "authors": [
+    "hitanshup <hitanshugold@gmail.com>"
+  ],
+  "license": "ISC",
+  "homepage": "https://github.com/hitanshup/crypto-notifier",
+  "moduleType": [],
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "bootstrap": "^3.3.7"
+  }
+}
