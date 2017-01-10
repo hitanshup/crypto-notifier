@@ -107,10 +107,12 @@ function updateMoneroValue() {
             newCurrentPrice = parseInt(newCurrentPrice);
             console.log(currentPrice);
             console.log(newCurrentPrice);
-            if(newCurrentPrice !== currentPrice) {
+            if(newCurrentPrice !== currentPrice && !isNaN(newCurrentPrice)) { // update the current price if it has changed
                 exactPrice = newExactPrice;
                 currentPrice = newCurrentPrice;
                 sendPriceUpdateEmail();
+            } else if(newExactPrice !== exactPrice) { //update the exact price even if it doesn't change by 1$
+                exactPrice = newExactPrice;
             }
         }
     });
@@ -153,5 +155,4 @@ app.listen(port, function () {
     console.log('crypto-notifier listening on port ' + port + '.');
 });
 
-updateMoneroValue();
 startCronJob();
