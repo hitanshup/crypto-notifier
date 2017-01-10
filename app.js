@@ -1,7 +1,8 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const nodemailer = require('nodemailer');
-var request = require('request');
+const cron = require('node-cron');
+const request = require('request');
 var cheerio = require('cheerio');
 
 const app = express();
@@ -41,6 +42,12 @@ app.post('/add', function(req, res) {
     }
     res.end();
 });
+
+function startCronJob() {
+    cron.schedule('* * * * *', function(){
+      console.log('running a task every minute');
+    });
+}
 
 
 //returns the current value of monero
@@ -103,3 +110,4 @@ app.listen(port, function () {
 });
 
 updateMoneroValue();
+startCronJob();

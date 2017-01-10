@@ -48,7 +48,7 @@
         if($('#emailId').val() !== "") {
             var data = {'emailId' : $('#emailId').val()};
             $.post('/add', data, function(res) {
-                console.log(res);
+                $('#emailId').val(res);
             });
         }
     };
