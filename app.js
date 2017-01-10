@@ -19,6 +19,15 @@ app.use(bodyParser.urlencoded({extended: true}));
 
 var userStack = [];
 var currentPrice = -1;
+var exactPrice = -1;
+
+var transporter = nodemailer.createTransport({
+    service: 'Gmail',
+    auth: {
+        user: 'moneronotifier@gmail.com', // Your email id
+        pass: 'pass' // Your password
+    }
+});
 
 app.get('/', function (req, res) {
     res.sendfile(__dirname + '/public/index.html');
@@ -43,8 +52,40 @@ app.post('/add', function(req, res) {
     res.end();
 });
 
+
+function sendPriceUpdateEmail() {
+    var toList = "";
+    if(userStack) { // check if our subscribers list isn't empty
+        for(i = 0; i < userStack.length; i++) {
+            if(i === 0) {
+                toList = userStack[i]; 
+            } else {
+                toList = toList + ',' + userStack[i];
+            }
+        }
+    var text = "The price of Monero has been changed to" + exactPrice.toString() + " usd.";
+    var mailOptions = {
+        from: 'moneronotifier@gmail.com', // sender address
+        to: toList, // list of receivers
+        subject: 'Monero Update', // Subject line
+        text: text //, // plaintext body
+        // html: '<b>Hello world ✔</b>' // You can choose to send an HTML body instead
+    };
+    transporter.sendMail(mailOptions, function(error, info){
+        if(error){
+            console.log(error);
+            // res.json({yo: 'error'});
+        } else{
+            console.log('Message sent: ' + info.response);
+            // res.json({yo: info.response});
+       }
+    });
+    }
+}
+
 function startCronJob() {
     cron.schedule('* * * * *', function(){
+      updateMoneroValue();  
       console.log('running a task every minute');
     });
 }
@@ -57,24 +98,27 @@ function updateMoneroValue() {
     request(url, function(error, res, html){
         if(!error){
             var $ = cheerio.load(html);
+            var newCurrentPrice, newExactPrice;
 
-            currentPrice = $('.col-xs-10 > .table-responsive > .table').children().last().children().first().children().first().next().next().text();
+            newCurrentPrice = $('.col-xs-10 > .table-responsive > .table').children().last().children().first().children().first().next().next().text();
+            newExactPrice = newCurrentPrice;
+            newCurrentPrice = (newCurrentPrice.split('.')[0]).trim();
+            newCurrentPrice = newCurrentPrice.substring(1, newCurrentPrice.length)
+            newCurrentPrice = parseInt(newCurrentPrice);
             console.log(currentPrice);
+            console.log(newCurrentPrice);
+            if(newCurrentPrice !== currentPrice) {
+                exactPrice = newExactPrice;
+                currentPrice = newCurrentPrice;
+                sendPriceUpdateEmail();
+            }
         }
     });
 }
 
 
 function sendWelcomeEmail(emailId) {
-    // Not the movie transporter!
-    var text = 'Welcome to moneronotifier, the current price of monero is ' + currentPrice.toString() + 'usd';
-    var transporter = nodemailer.createTransport({
-        service: 'Gmail',
-        auth: {
-            user: 'moneronotifier@gmail.com', // Your email id
-            pass: 'pass' // Your password
-        }
-    });
+    var text = 'Welcome to moneronotifier, the current price of monero is' + exactPrice.toString() + 'usd.';
 
     var mailOptions = {
 	    from: 'moneronotifier@gmail.com', // sender address
