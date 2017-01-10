@@ -1,6 +1,8 @@
 const express = require('express');
-const bodyParser = require('body-parser')
-var nodemailer = require('nodemailer');
+const bodyParser = require('body-parser');
+const nodemailer = require('nodemailer');
+var request = require('request');
+var cheerio = require('cheerio');
 
 const app = express();
 
@@ -15,6 +17,7 @@ app.use(bodyParser.urlencoded({extended: true}));
 // router.post('/', handleSayHello); // handle the route at yourdomain.com/sayHello
 
 var userStack = [];
+var currentPrice = -1;
 
 app.get('/', function (req, res) {
     res.sendfile(__dirname + '/public/index.html');
@@ -39,20 +42,25 @@ app.post('/add', function(req, res) {
     res.end();
 });
 
-// adds the emailId to the list of users
-function addUserToList(emailId) {
-	if(userStack.indexOf(emailId) === -1) { // if the email doesn't exists in the stack 
-		console.log("in");
-		userStack.push(emailId);
-		sendWelcomeEmail(emailId);
-		return 0; //success
-	} 
-	return -1; // fail
+
+//returns the current value of monero
+function updateMoneroValue() {
+    url = 'https://www.coingecko.com/en/price_charts/monero/usd';
+
+    request(url, function(error, res, html){
+        if(!error){
+            var $ = cheerio.load(html);
+
+            currentPrice = $('.col-xs-10 > .table-responsive > .table').children().last().children().first().children().first().next().next().text();
+            console.log(currentPrice);
+        }
+    });
 }
+
 
 function sendWelcomeEmail(emailId) {
     // Not the movie transporter!
-    var text = 'Welcome to moneronotifier';
+    var text = 'Welcome to moneronotifier, the current price of monero is ' + currentPrice.toString() + 'usd';
     var transporter = nodemailer.createTransport({
         service: 'Gmail',
         auth: {
@@ -64,7 +72,7 @@ function sendWelcomeEmail(emailId) {
     var mailOptions = {
 	    from: 'moneronotifier@gmail.com', // sender address
 	    to: emailId, // list of receivers
-	    subject: 'Email Example', // Subject line
+	    subject: 'Monero Update', // Subject line
 	    text: text //, // plaintext body
 	    // html: '<b>Hello world ✔</b>' // You can choose to send an HTML body instead
 	};
@@ -75,10 +83,23 @@ function sendWelcomeEmail(emailId) {
 	    } else{
 	        console.log('Message sent: ' + info.response);
 	        // res.json({yo: info.response});
-	    };
+	   }
 	});
+}
+
+// adds the emailId to the list of users
+function addUserToList(emailId) {
+    if(userStack.indexOf(emailId) === -1) { // if the email doesn't exists in the stack 
+        console.log("in");
+        userStack.push(emailId);
+        sendWelcomeEmail(emailId);
+        return 0; //success
+    } 
+    return -1; // fail
 }
 
 app.listen(port, function () {
     console.log('crypto-notifier listening on port ' + port + '.');
 });
+
+updateMoneroValue();
