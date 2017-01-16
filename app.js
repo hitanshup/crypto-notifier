@@ -4,6 +4,9 @@ const nodemailer = require('nodemailer');
 const cron = require('node-cron');
 const request = require('request');
 var cheerio = require('cheerio');
+var sqlite3 = require('sqlite3').verbose();
+var fs = require("fs");
+
 
 const app = express();
 
@@ -21,6 +24,9 @@ var userStack = [];
 var currentPrice = -1;
 var exactPrice = -1;
 
+var file = "userStack.db";
+var exists = fs.existsSync(file);
+var db = new sqlite3.Database(file);
 var transporter = nodemailer.createTransport({
     service: 'Gmail',
     auth: {
@@ -34,52 +40,71 @@ app.get('/', function (req, res) {
 });
 
 app.get('/favicon.ico', function(req, res) {
-    res.send(204);
+    res.sendStatus(204);
 });
 
 app.post('/add', function(req, res) {
-    var resultOfAdding = addUserToList(req.body.emailId.trim());
+    addEmailToDb(req.body.emailId.trim());
     res.writeHead(200, {
         "Content-Type": "text/plain"
     });
-    if(resultOfAdding === 0) {
-    	console.log(userStack);
-    	res.write("success");
-    } else {
-    	console.log(resultOfAdding);
-    	res.write("fail");
-    }
+    res.write("");
     res.end();
 });
 
 
+function initDb() {
+    if(!exists) {
+        console.log("Creating DB file.");
+        fs.openSync(file, "w");
+        db.serialize(function() {
+            db.run("CREATE TABLE if not exists user_info (info TEXT)");
+        });
+    }
+}
+
+function addEmailToDb(emailId) {
+    db.serialize(function() {
+        var stmt = db.prepare("INSERT INTO user_info VALUES (?)");
+        stmt.run(emailId);
+        stmt.finalize();
+        db.each("SELECT rowid AS id, info FROM user_info", function(err, row) {
+           console.log(row.id + ": " + row.info);
+        });
+    });
+    sendWelcomeEmail(emailId);
+}
+
 function sendPriceUpdateEmail() {
     var toList = "";
-    if(userStack) { // check if our subscribers list isn't empty
-        for(i = 0; i < userStack.length; i++) {
-            if(i === 0) {
-                toList = userStack[i]; 
-            } else {
-                toList = toList + ',' + userStack[i];
-            }
-        }
-    var text = "The price of Monero has been changed to" + exactPrice.toString() + " usd.";
-    var mailOptions = {
-        from: 'moneronotifier@gmail.com', // sender address
-        to: toList, // list of receivers
-        subject: 'Monero Update', // Subject line
-        text: text //, // plaintext body
-        // html: '<b>Hello world ✔</b>' // You can choose to send an HTML body instead
-    };
-    transporter.sendMail(mailOptions, function(error, info){
-        if(error){
-            console.log(error);
-            // res.json({yo: 'error'});
-        } else{
-            console.log('Message sent: ' + info.response);
-            // res.json({yo: info.response});
-       }
+    db.serialize(function() {
+        db.each("SELECT rowid AS id, info FROM user_info", function(err, row) {
+           if(row.id === 1) {
+                toList = row.info;
+           } else {
+                toList = toList + ',' + row.info;
+           }
+        });
     });
+    if(toList) { // check if our subscribers list isn't empty
+        
+        var text = "The price of Monero has been changed to" + exactPrice.toString() + " usd.";
+        var mailOptions = {
+            from: 'moneronotifier@gmail.com', // sender address
+            to: toList, // list of receivers
+            subject: 'Monero Update', // Subject line
+            text: text //, // plaintext body
+            // html: '<b>Hello world ✔</b>' // You can choose to send an HTML body instead
+        };
+        transporter.sendMail(mailOptions, function(error, info){
+            if(error){
+                console.log(error);
+                // res.json({yo: 'error'});
+            } else{
+                console.log('Message sent: ' + info.response);
+                // res.json({yo: info.response});
+           }
+        });
     }
 }
 
@@ -155,4 +180,7 @@ app.listen(port, function () {
     console.log('crypto-notifier listening on port ' + port + '.');
 });
 
+updateMoneroValue();
 startCronJob();
+initDb();
+

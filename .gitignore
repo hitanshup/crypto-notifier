@@ -35,3 +35,6 @@ bower_components
 
 # Temp files
 *.swp
+
+#db
+userStack.db
