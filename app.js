@@ -3,11 +3,13 @@ const bodyParser = require('body-parser');
 const nodemailer = require('nodemailer');
 const cron = require('node-cron');
 const request = require('request');
+const XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
 var cheerio = require('cheerio');
 var sqlite3 = require('sqlite3').verbose();
 var fs = require("fs");
 
 
+const http = new XMLHttpRequest();
 const app = express();
 
 const port = 90;
@@ -31,7 +33,7 @@ var transporter = nodemailer.createTransport({
     service: 'Gmail',
     auth: {
         user: 'moneronotifier@gmail.com', // Your email id
-        pass: 'pass' // Your password
+        pass: 'sideproject' // Your password
     }
 });
 
@@ -118,29 +120,27 @@ function startCronJob() {
 
 //returns the current value of monero
 function updateMoneroValue() {
-    url = 'https://www.coingecko.com/en/price_charts/monero/usd';
+    url = 'https://min-api.cryptocompare.com/data/price?fsym=XMR&tsyms=USD';
 
-    request(url, function(error, res, html){
-        if(!error){
-            var $ = cheerio.load(html);
-            var newCurrentPrice, newExactPrice;
+    http.open("GET", url);
+    http.send();
 
-            newCurrentPrice = $('.col-xs-10 > .table-responsive > .table').children().last().children().first().children().first().next().next().text();
-            newExactPrice = newCurrentPrice;
-            newCurrentPrice = (newCurrentPrice.split('.')[0]).trim();
-            newCurrentPrice = newCurrentPrice.substring(1, newCurrentPrice.length)
-            newCurrentPrice = parseInt(newCurrentPrice);
-            console.log(currentPrice);
-            console.log(newCurrentPrice);
-            if(newCurrentPrice !== currentPrice && !isNaN(newCurrentPrice)) { // update the current price if it has changed
-                exactPrice = newExactPrice;
-                currentPrice = newCurrentPrice;
-                sendPriceUpdateEmail();
-            } else if(newExactPrice !== exactPrice) { //update the exact price even if it doesn't change by 1$
-                exactPrice = newExactPrice;
-            }
+    http.onreadystatechange=(e)=>{
+        newCurrentPrice = http.responseText
+        // TODO: PLEASE CHANGE THIS
+        newCurrentPrice = newCurrentPrice.slice(7, 13);
+        console.log(newCurrentPrice);
+        newExactPrice = newCurrentPrice;
+        newCurrentPrice = parseInt(newCurrentPrice)
+        console.log(newCurrentPrice)
+        if(newCurrentPrice !== currentPrice && !isNaN(newCurrentPrice)) { // update the current price if it has changed
+            exactPrice = newExactPrice;
+            currentPrice = newCurrentPrice;
+            sendPriceUpdateEmail();
+        } else if(newExactPrice !== exactPrice) { //update the exact price even if it doesn't change by 1$
+            exactPrice = newExactPrice;
         }
-    });
+    }
 }
 
 
